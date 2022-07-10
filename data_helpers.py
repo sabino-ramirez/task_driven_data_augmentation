@@ -1,8 +1,10 @@
 import subprocess as s
 from pathlib import Path
 
+# call the file to run them in order or use the methods individually (in order still)
 
 def run_n4_iteratively():
+    s.run(["mkdir", "/home/sabino/task_driven_data_augmentation/dataset/bias_correct"])
     for index in range(1, 101):
         # Load each image
         if index < 10:
