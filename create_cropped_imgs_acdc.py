@@ -28,7 +28,7 @@ if parse_config.dataset == 'acdc':
     orig_img_dt=dt.load_acdc_imgs
 
 #loop over all image,label pairs to create cropped image,label pairs
-for index in range(1,100):
+for index in range(1,101):
     # Load each image
     if(index<10):
         test_id='00'+str(index)
@@ -39,7 +39,7 @@ for index in range(1,100):
     test_id_l=[test_id]
 
     #load image,label pairs and process it to chosen resolution and dimensions    
-    img_sys,label_sys,pixel_size,affine_tst= orig_img_dt(test_id_l,ret_affine=1)
+    img_sys,label_sys,pixel_size,affine_tst = orig_img_dt(test_id_l,ret_affine=1)
     cropped_img_sys,cropped_mask_sys = dt.preprocess_data(img_sys, label_sys, pixel_size)
 
     #save the processed cropped img and its label

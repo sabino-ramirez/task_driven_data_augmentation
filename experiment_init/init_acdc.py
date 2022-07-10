@@ -25,11 +25,21 @@ target_resolution=(1.36719,1.36719)
 #validation_update_step to save values
 val_step_update=10
 #base dir of network
-base_dir='/usr/bmicnas01/data-biwi-01/krishnch/projects/data_aug_seg/'
+# --- default
+# base_dir='/usr/bmicnas01/data-biwi-01/krishnch/projects/data_aug_seg/'
+# --- adjusted
+base_dir='/home/sabino/task_driven_data_augmentation'
 #data path tr
-data_path_tr='/usr/bmicnas01/data-biwi-01/krishnch/datasets/heart_acdc/acdc_bias_corr/patient'
+# --- default below
+# data_path_tr='/usr/bmicnas01/data-biwi-01/krishnch/datasets/heart_acdc/acdc_bias_corr/patient'
+# --- adjusted
+# data_path_tr='/home/sabino/task_driven_data_augmentation/dataset/acdc_bias_corr/patient'
+data_path_tr='/home/sabino/task_driven_data_augmentation/dataset/bias_correct/patient'
 #cropped imgs data_path
-data_path_tr_cropped='/usr/bmicnas01/data-biwi-01/krishnch/datasets/heart_acdc/acdc_bias_corr_cropped/patient'
+# --- default below 
+# data_path_tr_cropped='/usr/bmicnas01/data-biwi-01/krishnch/datasets/heart_acdc/acdc_bias_corr_cropped/patient'
+# --- adjusted
+data_path_tr_cropped='/home/sabino/task_driven_data_augmentation/dataset/acdc_bias_corr_cropped/patient/'
 ################################################################
 
 ################################################################
