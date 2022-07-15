@@ -28,7 +28,7 @@ if parse_config.dataset == 'acdc':
     orig_img_dt=dt.load_acdc_imgs
 
 #loop over all image,label pairs to create cropped image,label pairs
-for index in range(1,101):
+for index in range(1,17):
     # Load each image
     if(index<10):
         test_id='00'+str(index)
