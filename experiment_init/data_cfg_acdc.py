@@ -3,7 +3,7 @@ import sys
 def train_data(no_of_tr_imgs,comb_of_tr_imgs):
     #print('train data')
     if(no_of_tr_imgs=='tr5' and comb_of_tr_imgs=='c1'):
-        labeled_id_list=["002","022","042","062","095"]
+        labeled_id_list=["002","007","010","013","014"]
     #elif(no_of_tr_imgs=='tr5' and comb_of_tr_imgs=='c2'):
     #    labeled_id_list=["003","023","043","063","083"]
     #elif(no_of_tr_imgs=='tr15' and comb_of_tr_imgs=='c1'):
@@ -15,7 +15,7 @@ def train_data(no_of_tr_imgs,comb_of_tr_imgs):
     #elif(no_of_tr_imgs=='tr3' and comb_of_tr_imgs=='c1'):
     #    labeled_id_list=["002","022","042"]
     elif(no_of_tr_imgs=='tr3' and comb_of_tr_imgs=='c1'):
-        labeled_id_list=["002","007","015"]
+        labeled_id_list=["007","008","013"]
     #elif(no_of_tr_imgs=='tr3' and comb_of_tr_imgs=='c2'):
     #    labeled_id_list=["042","062","082"]
     #elif(no_of_tr_imgs=='tr3' and comb_of_tr_imgs=='c3'):
@@ -47,15 +47,15 @@ def train_data(no_of_tr_imgs,comb_of_tr_imgs):
 
 def val_data():
     #print('valilation data')
-    val_list=["016","009"]
+    val_list=["014","015"]
     return val_list
 
 def unlabeled_data():
     #print('unlabeled data')
-    unlabeled_list=["001", "003", "004", "010", "011", "012", "013", "014",]
+    unlabeled_list=["001", "003", "004", "005"]
     return unlabeled_list
 
 def test_data():
     #print('test data')
-    test_list=["005", "006", "008"]
+    test_list=["002", "006", "009", "010", "011", "012"]
     return test_list

@@ -5,7 +5,7 @@ from pathlib import Path
 
 def run_n4_iteratively():
     s.run(["mkdir", "/home/sabino/task_driven_data_augmentation/dataset/summer_bias_correct"])
-    for index in range(1, 17):
+    for index in range(1, 16):
         # Load each image
         if index < 10:
             test_id = "00" + str(index)
@@ -15,7 +15,7 @@ def run_n4_iteratively():
             test_id = str(index)
 
         inputPath = (
-            "/home/sabino/task_driven_data_augmentation/dataset/summer_training/patient"
+            "/home/sabino/task_driven_data_augmentation/dataset/summer_data_home/patient"
             + test_id
             + "/patient"
             + test_id
@@ -66,7 +66,7 @@ def add_labels_to_dataset():
         "/home/sabino/task_driven_data_augmentation/dataset/summer_bias_correct/patient"
     )
 
-    for index in range(1, 17):
+    for index in range(1, 16):
         if index < 10:
             test_id = "00" + str(index)
         elif index < 100:

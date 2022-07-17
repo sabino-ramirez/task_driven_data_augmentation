@@ -1,4 +1,6 @@
 import os
+from PIL import Image as im
+import nibabel as nib
 
 # # Assign GPU no
 # os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SGE_GPU"]
@@ -287,9 +289,9 @@ ae = model.spatial_generator_cgan_unet(
 ######################################
 #  training parameters
 start_epoch = 0
-n_epochs = 10000
+n_epochs = 5000
 disp_step = 400
-print_step = 2000
+print_step = 1000
 # no of iterations to train just the segmentation network using the labeled data without any cGAN generated data
 seg_tr_limit = 400
 mean_f1_val_prev = 0.1
@@ -485,9 +487,9 @@ for epoch_i in range(start_epoch, n_epochs):
         dsc_summary_msg = sess.run(
             ae["val_dsc_summary"],
             feed_dict={
-                ae["rv_dice"]: np.mean(f1_arr[:, 0]),
-                ae["myo_dice"]: np.mean(f1_arr[:, 1]),
-                ae["lv_dice"]: np.mean(f1_arr[:, 2]),
+                ae["vag_dice"]: np.mean(f1_arr[:, 0]),
+                ae["rec_dice"]: np.mean(f1_arr[:, 1]),
+                #ae["lv_dice"]: np.mean(f1_arr[:, 2]),
                 ae["mean_dice"]: mean_f1,
             },
         )
@@ -525,12 +527,16 @@ f1_util.pred_segs_acdc_test_subjs(
 )
 #########################
 # To plot the generated augmented images from the trained deformation cGAN
-for j in range(0, 5):
+for j in range(0, 15):
     z_samples, ld_img_batch, unld_img_batch = get_samples(train_imgs, unlabeled_imgs)
-    save_dir_tmp = str(save_dir) + "/ep_best_model/"
+    save_dir_tmp = str(save_dir) + "/ep_best_model_yo_its_me/"
     plt_func(
         sess_new, ae, save_dir_tmp, z_samples, ld_img_batch, unld_img_batch, index=j
     )
+    print(type(ld_img_batch))
+    print(ld_img_batch.shape)
+    #image = im.fromarray(ld_img_batch[:,:,0])
+    #image.show()
 ######################################
 # To compute inference on validation images on the best model
 save_dir_tmp = str(save_dir) + "/val_imgs/"

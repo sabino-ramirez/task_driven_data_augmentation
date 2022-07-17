@@ -16,7 +16,7 @@ img_size_flat = img_size_x * img_size_y
 # Number of colour channels for the images: 1 channel for gray-scale image.
 num_channels = 1
 # Number of classes : # 0-background, 1-rv, 2-myo, 3-lv
-num_classes=4 
+num_classes=3 
 size=(img_size_x,img_size_y)
 target_resolution=(1.36719,1.36719)
 ################################################################
@@ -50,4 +50,5 @@ data_path_tr_cropped='/home/sabino/task_driven_data_augmentation/dataset/summer_
 aug_en=1
 #batch_size
 batch_size=20
-struct_name=['rv','myo','lv']
+#struct_name=['rv','myo','lv']
+struct_name=['vag','rec']
