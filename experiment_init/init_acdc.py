@@ -47,7 +47,7 @@ data_path_tr_cropped='/home/sabino/task_driven_data_augmentation/dataset/summer_
 #network optimization parameters
 ################################################################
 #enable data augmentation
-aug_en=1
+aug_en=0
 #batch_size
 batch_size=20
 #struct_name=['rv','myo','lv']

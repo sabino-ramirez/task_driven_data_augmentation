@@ -170,98 +170,43 @@ print("save_dir", save_dir)
 ######################################
 # load train and val images
 train_list = data_list.train_data(parse_config.no_of_tr_imgs, parse_config.comb_tr_imgs)
+print("train_list: ", train_list)
+
 # load train data cropped images directly
 print("loading train imgs")
 train_imgs, train_labels = dt.load_acdc_cropped_img_labels(train_list)
-
-if parse_config.no_of_tr_imgs == "tr1":
-    train_imgs_copy = np.copy(train_imgs)
-    train_labels_copy = np.copy(train_labels)
-    while train_imgs.shape[2] < cfg.batch_size:
-        train_imgs = np.concatenate((train_imgs, train_imgs_copy), axis=2)
-        train_labels = np.concatenate((train_labels, train_labels_copy), axis=2)
-    del train_imgs_copy, train_labels_copy
+print("train_imgs: ", type(train_imgs))
+print("train_labels: ", type(train_imgs))
 
 val_list = data_list.val_data()
+print("val_list: ", val_list)
+
 # load both val data and its cropped images
 print("loading val imgs")
+print("orig_img_dt: ", type(orig_img_dt))
 val_label_orig, val_img_crop, val_label_crop, pixel_val_list = load_val_imgs(
     val_list, dt, orig_img_dt
 )
+print("val_label_orig: ", type(val_label_orig))
+print("val_img_crop: ", type(val_img_crop))
+print("val_label_crop: ", type(val_label_crop))
+print("pixel_val_list: ", type(pixel_val_list))
 
 # # load unlabeled images
 unl_list = data_list.unlabeled_data()
+print("unl_list: ", unl_list)
+
 print("loading unlabeled imgs")
 unlabeled_imgs = dt.load_acdc_cropped_img_labels(unl_list, label_present=0)
-# print('unlabeled_imgs',unlabeled_imgs.shape)
+print("unlabeled_imgs: ", type(unlabeled_imgs))
 
 # get test list
 print("get test imgs list")
 test_list = data_list.test_data()
+print("test_list: ", test_list)
 struct_name = cfg.struct_name
 val_step_update = cfg.val_step_update
 ######################################
-
-######################################
-
-
-def get_samples(labeled_imgs, unlabeled_imgs):
-    # sample z vectors from Gaussian Distribution
-    z_samples = np.random.normal(
-        loc=0.0, scale=1.0, size=(cfg.batch_size, parse_config.z_lat_dim)
-    ).astype(np.float32)
-
-    # sample Unlabeled data shuffled batch
-    unld_img_batch = shuffle_minibatch(
-        [unlabeled_imgs],
-        batch_size=int(cfg.batch_size),
-        num_channels=cfg.num_channels,
-        labels_present=0,
-        axis=2,
-    )
-
-    # sample Labelled data shuffled batch
-    ld_img_batch = shuffle_minibatch(
-        [labeled_imgs],
-        batch_size=int(cfg.batch_size),
-        num_channels=cfg.num_channels,
-        labels_present=0,
-        axis=2,
-    )
-
-    return z_samples, ld_img_batch, unld_img_batch
-
-
-def plt_func(sess, ae, save_dir, z_samples, ld_img_batch, unld_img_batch, index=0):
-    # plot deformed images for an fixed input image and different per-pixel flow vectors generated from sampled z values
-    ld_img_tmp = np.zeros_like(ld_img_batch)
-    # select one 2D image from the batch and apply different z's sampled over this selected image
-    for i in range(0, 20):
-        ld_img_tmp[i, :, :, 0] = ld_img_batch[index, :, :, 0]
-
-    flow_vec, y_geo_deformed, z_cost = sess.run(
-        [ae["flow_vec"], ae["y_trans"], ae["z_cost"]],
-        feed_dict={
-            ae["x_l"]: ld_img_tmp,
-            ae["z"]: z_samples,
-            ae["x_unl"]: unld_img_batch,
-            ae["select_mask"]: True,
-            ae["train_phase"]: False,
-        },
-    )
-
-    f1_util.plot_deformed_imgs(
-        ld_img_tmp, y_geo_deformed, flow_vec, save_dir, index=index
-    )
-
-    # Plot gif of all the deformed images generated for the fixed input image
-    f1_util.write_gif_func(
-        ip_img=y_geo_deformed,
-        imsize=(cfg.img_size_x, cfg.img_size_y),
-        save_dir=save_dir,
-        index=index,
-    )
-
 
 ######################################
 # Define checkpoint file to save CNN architecture and learnt hyperparameters
@@ -320,7 +265,6 @@ sess.run(tf.global_variables_initializer())
 saver = tf.train.Saver(max_to_keep=2)
 ######################################
 
-# Run for n_epochs
 for epoch_i in range(start_epoch, n_epochs):
 
     # sample z's from Gaussian Distribution
@@ -344,6 +288,8 @@ for epoch_i in range(start_epoch, n_epochs):
         num_channels=cfg.num_channels,
         axis=2,
     )
+    
+    # currently 0
     if cfg.aug_en == 1:
         # Apply affine transformations
         ld_img_batch, ld_label_batch = augmentation_function(
@@ -512,35 +458,3 @@ for epoch_i in range(start_epoch, n_epochs):
             mp_best = mp
 
 sess.close()
-######################################
-# restore best model and predict segmentations on test subjects
-saver_new = tf.train.Saver()
-sess_new = tf.Session(config=config)
-saver_new.restore(sess_new, mp_best)
-print("best model chkpt name", mp_best)
-print("Model restored")
-
-#########################
-# To compute inference on test images on the model that yields best dice score on validation images
-f1_util.pred_segs_acdc_test_subjs(
-    sess_new, ae, save_dir, orig_img_dt, test_list, struct_name
-)
-#########################
-# To plot the generated augmented images from the trained deformation cGAN
-for j in range(0, 15):
-    z_samples, ld_img_batch, unld_img_batch = get_samples(train_imgs, unlabeled_imgs)
-    save_dir_tmp = str(save_dir) + "/ep_best_model_yo_its_me/"
-    plt_func(
-        sess_new, ae, save_dir_tmp, z_samples, ld_img_batch, unld_img_batch, index=j
-    )
-    print(type(ld_img_batch))
-    print(ld_img_batch.shape)
-    #image = im.fromarray(ld_img_batch[:,:,0])
-    #image.show()
-######################################
-# To compute inference on validation images on the best model
-save_dir_tmp = str(save_dir) + "/val_imgs/"
-f1_util.pred_segs_acdc_test_subjs(
-    sess_new, ae, save_dir_tmp, orig_img_dt, val_list, struct_name
-)
-######################################

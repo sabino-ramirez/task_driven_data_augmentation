@@ -1,4 +1,6 @@
 import os
+from PIL import Image as im
+import nibabel as nib
 # # Assign GPU no
 #os.environ["CUDA_VISIBLE_DEVICES"]=os.environ['SGE_GPU']
 #from tensorflow.python.client import device_lib
@@ -195,49 +197,49 @@ saver_geo.restore(sess_geo,mp)
 #load additive intensity field generator net
 ########################################################################
 # Define the model graph
-tf.reset_default_graph()
-ae_int = model.intensity_transform_cgan_unet(learn_rate_gen=parse_config.lr_gen,learn_rate_disc=parse_config.lr_disc,\
-                        beta1_val=parse_config.beta_val,gan_type=parse_config.gan_type,ra_en=parse_config.ra_en,\
-                        learn_rate_seg=parse_config.lr_seg,dsc_loss=parse_config.dsc_loss,en_1hot=parse_config.en_1hot,\
-                        lamda_dsc=parse_config.lamda_dsc,lamda_adv=parse_config.lamda_adv,lamda_l1_i=parse_config.lamda_l1_i)
-
-# define model path
-model_path=str(cfg.base_dir)+'/models/'+str(parse_config.dataset)+'/tr_intensity_cgan_unet/ra_en_'+str(ra_en_val)+'_gantype_'+str(parse_config.gan_type)+'/'
-
-if(parse_config.data_aug_seg==0):
-    model_path=str(model_path)+'no_data_aug/'
-    cfg.aug_en=parse_config.data_aug_seg
-else:
-    model_path=str(model_path)+'with_data_aug/'
-
-model_path=str(model_path)+'lamda_dsc_'+str(parse_config.lamda_dsc)+'_lamda_adv_'+str(parse_config.lamda_adv)+'_lamda_i_'+str(parse_config.lamda_l1_i)+'/'+\
-         str(parse_config.no_of_tr_imgs)+'/'+str(parse_config.comb_tr_imgs)+'_v'+str(parse_config.ver)+\
-         '/unet_model_beta1_'+str(parse_config.beta_val)+'_lr_seg_'+str(parse_config.lr_seg)+'_lr_gen_'+str(parse_config.lr_gen)+'_lr_disc_'+str(parse_config.lr_disc)+'/'
-
-mp=get_max_chkpt_file(model_path)
-print('loading additive intensity field cGAN checkpoint file ',mp)
-# create a session and load the parameters learned
-saver_int = tf.train.Saver(max_to_keep=2)
-sess_int = tf.Session(config=config)
-saver_int.restore(sess_int,mp)
+#tf.reset_default_graph()
+#ae_int = model.intensity_transform_cgan_unet(learn_rate_gen=parse_config.lr_gen,learn_rate_disc=parse_config.lr_disc,\
+#                        beta1_val=parse_config.beta_val,gan_type=parse_config.gan_type,ra_en=parse_config.ra_en,\
+#                        learn_rate_seg=parse_config.lr_seg,dsc_loss=parse_config.dsc_loss,en_1hot=parse_config.en_1hot,\
+#                        lamda_dsc=parse_config.lamda_dsc,lamda_adv=parse_config.lamda_adv,lamda_l1_i=parse_config.lamda_l1_i)
+#
+## define model path
+#model_path=str(cfg.base_dir)+'/models/'+str(parse_config.dataset)+'/tr_intensity_cgan_unet/ra_en_'+str(ra_en_val)+'_gantype_'+str(parse_config.gan_type)+'/'
+#
+#if(parse_config.data_aug_seg==0):
+#    model_path=str(model_path)+'no_data_aug/'
+#    cfg.aug_en=parse_config.data_aug_seg
+#else:
+#    model_path=str(model_path)+'with_data_aug/'
+#
+#model_path=str(model_path)+'lamda_dsc_'+str(parse_config.lamda_dsc)+'_lamda_adv_'+str(parse_config.lamda_adv)+'_lamda_i_'+str(parse_config.lamda_l1_i)+'/'+\
+#         str(parse_config.no_of_tr_imgs)+'/'+str(parse_config.comb_tr_imgs)+'_v'+str(parse_config.ver)+\
+#         '/unet_model_beta1_'+str(parse_config.beta_val)+'_lr_seg_'+str(parse_config.lr_seg)+'_lr_gen_'+str(parse_config.lr_gen)+'_lr_disc_'+str(parse_config.lr_disc)+'/'
+#
+#mp=get_max_chkpt_file(model_path)
+#print('loading additive intensity field cGAN checkpoint file ',mp)
+## create a session and load the parameters learned
+#saver_int = tf.train.Saver(max_to_keep=2)
+#sess_int = tf.Session(config=config)
+#saver_int.restore(sess_int,mp)
 
 ######################################
 
 ######################################
 #  training parameters
 start_epoch=0
-n_epochs = 10000
+n_epochs = 1
 disp_step=500
 mean_f1_val_prev=0.1
 threshold_f1=0.00001
 debug_en=0
-pathlib.Path(best_model_dir).mkdir(parents=True, exist_ok=True)
+#pathlib.Path(best_model_dir).mkdir(parents=True, exist_ok=True)
 ######################################
 
 ######################################
 # define current graph - unet
-tf.reset_default_graph()
-ae = model.unet(learn_rate_seg=parse_config.lr_seg,en_1hot=parse_config.en_1hot,dsc_loss=parse_config.dsc_loss)
+#tf.reset_default_graph()
+#ae = model.unet(learn_rate_seg=parse_config.lr_seg,en_1hot=parse_config.en_1hot,dsc_loss=parse_config.dsc_loss)
 ######################################
 
 ######################################
@@ -247,10 +249,10 @@ df_ae= model.deform_net()
 
 ######################################
 #writer for train summary
-train_writer = tf.summary.FileWriter(logs_path)
+#train_writer = tf.summary.FileWriter(logs_path)
 #writer for dice score and val summary
-dsc_writer = tf.summary.FileWriter(logs_path)
-val_sum_writer = tf.summary.FileWriter(logs_path)
+#dsc_writer = tf.summary.FileWriter(logs_path)
+#val_sum_writer = tf.summary.FileWriter(logs_path)
 ######################################
 
 ######################################
@@ -265,13 +267,15 @@ saver = tf.train.Saver(max_to_keep=2)
 for epoch_i in range(start_epoch,n_epochs):
 
     # sample z's from Gaussian Distribution
+    print('sampling zs')
     z_samples = np.random.normal(loc=0.0, scale=1.0, size=(cfg.batch_size, parse_config.z_lat_dim)).astype(np.float32)
 
     #sample Labelled data shuffled batch
+    print('sampling labeled data')
     ld_img_batch,ld_label_batch=shuffle_minibatch([train_imgs,train_labels],batch_size=cfg.batch_size,num_channels=cfg.num_channels,axis=2)
-    if(cfg.aug_en==1):
+    #if(cfg.aug_en==1):
         # Apply affine transformations
-        ld_img_batch,ld_label_batch=augmentation_function([ld_img_batch,ld_label_batch],dt)
+        #ld_img_batch,ld_label_batch=augmentation_function([ld_img_batch,ld_label_batch],dt)
 
     ld_img_batch_orig_tmp=np.copy(ld_img_batch)
     ld_label_batch_orig_tmp=np.copy(ld_label_batch)
@@ -280,112 +284,140 @@ for epoch_i in range(start_epoch,n_epochs):
 
     ############################
     ## use Deformation field cGAN to generate additional augmented image,label pairs from labeled samples
+    print('here is where the deformed images and labels are being made')
     flow_vec,ld_img_batch_geo=sess_geo.run([ae_geo['flow_vec'],ae_geo['y_trans']],\
                                 feed_dict={ae_geo['x_l']: ld_img_batch_orig_tmp, ae_geo['z']:z_samples, ae_geo['train_phase']: False})
 
     ld_label_batch_geo=sess.run([df_ae['deform_y_1hot']],feed_dict={df_ae['y_tmp']:ld_label_batch_orig_tmp,df_ae['flow_v']:flow_vec})
     ld_label_batch_geo=ld_label_batch_geo[0]
 
+    #np.save("stuff/img_batch" + str(epoch_i), ld_img_batch_geo)
+    #np.save("stuff/label_batch" + str(epoch_i), ld_label_batch_geo)
+
+    # save original img/label pairs
+    for k in range(20):
+        nib.save(nib.Nifti1Image(ld_img_batch_orig_tmp[k], np.eye(4)), "stuff/orig/orig_slice" + str(k) + ".nii.gz")
+        nib.save(nib.Nifti1Image(ld_label_batch_orig_tmp[k], np.eye(4)), "stuff/orig/labels/orig_slice" + str(k) + ".nii.gz")
+
+    # save geo deformed img/label pairs
+    for k in range(20):
+        nib.save(nib.Nifti1Image(ld_img_batch_geo[k], np.eye(4)), "stuff/deform/deform_slice" + str(k) + ".nii.gz")
+        nib.save(nib.Nifti1Image(ld_label_batch_geo[k], np.eye(4)), "stuff/deform/labels/deform_slice" + str(k) + ".nii.gz")
+
+    #print("type of ld_img_batch_geo: ", type(ld_img_batch_geo))
+    #print("dimensions of ld_img_batch_geo: ", ld_img_batch_geo.ndim)
+    #print("size of ld_img_batch_geo", ld_img_batch_geo.size)
+    #print("shape of ld_img_batch_geo", ld_img_batch_geo.shape)
+
+    #print("type of ld_label_batch_geo: ", type(ld_label_batch_geo))
+    #print("dimension of ld_label_batch_geo", ld_label_batch_geo.ndim)
+    #print("size of ld_label_batch_geo", ld_label_batch_geo.size)
+    #print("shape of ld_label_batch_geo", ld_label_batch_geo.shape)
     ############################
     # use additive Intensity field cGAN to generate additional augmented image,label pairs from labeled samples
-    int_c1,ld_img_batch_int=sess_int.run([ae_int['int_c1'],ae_int['y_int']], feed_dict={ae_int['x']: ld_img_batch_orig_tmp, ae_int['z']:z_samples, ae_int['train_phase']: False})
-    ld_label_batch_int = ld_label_batch_orig_1hot
+    #int_c1,ld_img_batch_int=sess_int.run([ae_int['int_c1'],ae_int['y_int']], feed_dict={ae_int['x']: ld_img_batch_orig_tmp, ae_int['z']:z_samples, ae_int['train_phase']: False})
+    #ld_label_batch_int = ld_label_batch_orig_1hot
 
     ############################
     # use additive intensity field cGAN over augmented images generated from deformation field cGAN to create augmented images \
     # that have both spatial deformations and intensity transformations applied in them
-    ld_img_batch_geo_tmp=np.copy(ld_img_batch_geo)
-    int_c1,ld_img_batch_geo_int=sess_int.run([ae_int['int_c1'],ae_int['y_int']], feed_dict={ae_int['x']: ld_img_batch_geo_tmp, ae_int['z']:z_samples, ae_int['train_phase']: False})
-    ld_label_batch_geo_int = np.copy(ld_label_batch_geo)
+    #ld_img_batch_geo_tmp=np.copy(ld_img_batch_geo)
+    #int_c1,ld_img_batch_geo_int=sess_int.run([ae_int['int_c1'],ae_int['y_int']], feed_dict={ae_int['x']: ld_img_batch_geo_tmp, ae_int['z']:z_samples, ae_int['train_phase']: False})
+    #ld_label_batch_geo_int = np.copy(ld_label_batch_geo)
 
     # shuffle the quantity/number of images chosen from 
     # deformation field cGAN --> no_g,
     # intensity field cGAN   --> no_i,
     # both cGANs             --> no_b,
     # and rest (batch_size - (no_g+no_i+no_b)) are original images with conventional affine transformations.
-    no_g=np.random.randint(1, high=5)
-    no_i=np.random.randint(5, high=10)
-    no_b=np.random.randint(10, high=15)
+    #no_g=np.random.randint(1, high=5)
+    #no_g=np.random.randint(1, high=10)
+    #no_i=np.random.randint(5, high=10)
+    #no_b=np.random.randint(10, high=15)
 
-    ld_img_batch=ld_img_batch_orig_tmp
-    ld_label_batch=ld_label_batch_orig_1hot
+    #ld_img_batch=ld_img_batch_orig_tmp
+    #ld_label_batch=ld_label_batch_orig_1hot
 
-    ld_img_batch[0:no_g] = ld_img_batch_geo[0:no_g]
-    ld_label_batch[0:no_g] = ld_label_batch_geo[0:no_g]
-    ld_img_batch[no_g:no_i] = ld_img_batch_int[no_g:no_i]
-    ld_label_batch[no_g:no_i] = ld_label_batch_int[no_g:no_i]
-    ld_img_batch[no_i:no_b] = ld_img_batch_geo_int[no_i:no_b]
-    ld_label_batch[no_i:no_b] = ld_label_batch_geo_int[no_i:no_b]
+    #ld_img_batch[0:no_g] = ld_img_batch_geo[0:no_g]
+    #ld_label_batch[0:no_g] = ld_label_batch_geo[0:no_g]
 
-    #Optimer over this batch of images
-    train_summary,_ =sess.run([ae['train_summary'],ae['optimizer_unet_seg']], feed_dict={ae['x']: ld_img_batch, ae['y_l']: ld_label_batch,\
-                               ae['select_mask']: False, ae['train_phase']: True})
+    #np.save("stuff/img" + str(epoch_i), ld_img_batch_geo[0:no_g])
+    #np.save("stuff/label" + str(epoch_i), ld_label_batch_geo[0:no_g])
+    
+    #ld_img_batch[no_g:no_i] = ld_img_batch_int[no_g:no_i]
+    #ld_label_batch[no_g:no_i] = ld_label_batch_int[no_g:no_i]
+    #ld_img_batch[no_i:no_b] = ld_img_batch_geo_int[no_i:no_b]
+    #ld_label_batch[no_i:no_b] = ld_label_batch_geo_int[no_i:no_b]
 
-    if(epoch_i%val_step_update==0):
-        train_writer.add_summary(train_summary, epoch_i)
-        train_writer.flush()
+    ##Optimer over this batch of images
+    #train_summary,_ =sess.run([ae['train_summary'],ae['optimizer_unet_seg']], feed_dict={ae['x']: ld_img_batch, ae['y_l']: ld_label_batch,\
+    #                           ae['select_mask']: False, ae['train_phase']: True})
 
-    if(epoch_i%val_step_update==0):
+    #if(epoch_i%val_step_update==0):
+    #    train_writer.add_summary(train_summary, epoch_i)
+    #    train_writer.flush()
+
+    #if(epoch_i%val_step_update==0):
         ##Save the model with best DSC for Validation Image
-        mean_f1_arr=[]
-        f1_arr=[]
-        for val_id_no in range(0,len(val_list)):
-            val_img_crop_tmp=val_img_crop[val_id_no]
-            val_label_crop_tmp=val_label_crop[val_id_no]
-            val_label_orig_tmp=val_label_orig[val_id_no]
-            pixel_size_val=pixel_val_list[val_id_no]
+    #    mean_f1_arr=[]
+    #    f1_arr=[]
+    #    for val_id_no in range(0,len(val_list)):
+    #        val_img_crop_tmp=val_img_crop[val_id_no]
+    #        val_label_crop_tmp=val_label_crop[val_id_no]
+    #        val_label_orig_tmp=val_label_orig[val_id_no]
+    #        pixel_size_val=pixel_val_list[val_id_no]
 
-            # Compute segmentation mask and dice_score for each validation subject
-            pred_sf_mask = f1_util.calc_pred_sf_mask_full(sess, ae, val_img_crop_tmp)
-            re_pred_mask_sys,f1_val = f1_util.reshape_img_and_f1_score(pred_sf_mask, val_label_orig_tmp, pixel_size_val)
+    #        # Compute segmentation mask and dice_score for each validation subject
+    #        pred_sf_mask = f1_util.calc_pred_sf_mask_full(sess, ae, val_img_crop_tmp)
+    #        re_pred_mask_sys,f1_val = f1_util.reshape_img_and_f1_score(pred_sf_mask, val_label_orig_tmp, pixel_size_val)
 
-            #concatenate dice scores of each val image
-            mean_f1_arr.append(np.mean(f1_val[1:cfg.num_classes]))
-            f1_arr.append(f1_val[1:cfg.num_classes])
+    #        #concatenate dice scores of each val image
+    #        mean_f1_arr.append(np.mean(f1_val[1:cfg.num_classes]))
+    #        f1_arr.append(f1_val[1:cfg.num_classes])
 
-        #avg mean over 2 val subjects
-        mean_f1_arr=np.asarray(mean_f1_arr)
-        mean_f1=np.mean(mean_f1_arr)
-        f1_arr=np.asarray(f1_arr)
+    #    #avg mean over 2 val subjects
+    #    mean_f1_arr=np.asarray(mean_f1_arr)
+    #    mean_f1=np.mean(mean_f1_arr)
+    #    f1_arr=np.asarray(f1_arr)
 
-        if (mean_f1-mean_f1_val_prev>threshold_f1 and epoch_i!=start_epoch):
-            print("prev f1_val; present_f1_val", mean_f1_val_prev, mean_f1, mean_f1_arr)
-            mean_f1_val_prev = mean_f1
+    #    if (mean_f1-mean_f1_val_prev>threshold_f1 and epoch_i!=start_epoch):
+    #        print("prev f1_val; present_f1_val", mean_f1_val_prev, mean_f1, mean_f1_arr)
+    #        mean_f1_val_prev = mean_f1
 
-            # to save the best model with maximum dice score over the entire n_epochs
-            print("best model saved at epoch no. ", epoch_i)
-            mp_best = str(best_model_dir) + str(checkpoint_filename) + '_best_model_epoch_' + str(epoch_i) + '.ckpt'
-            saver.save(sess, mp_best)
+    #        # to save the best model with maximum dice score over the entire n_epochs
+    #        print("best model saved at epoch no. ", epoch_i)
+    #        mp_best = str(best_model_dir) + str(checkpoint_filename) + '_best_model_epoch_' + str(epoch_i) + '.ckpt'
+    #        saver.save(sess, mp_best)
 
-        #calc. and save validation image dice summary
-        dsc_summary_msg = sess.run(ae['val_dsc_summary'], feed_dict={ae['rv_dice']:np.mean(f1_arr[:,0]),\
-                                ae['myo_dice']:np.mean(f1_arr[:,1]),ae['lv_dice']:np.mean(f1_arr[:,2]),ae['mean_dice']: mean_f1})
-        val_sum_writer.add_summary(dsc_summary_msg, epoch_i)
-        val_sum_writer.flush()
+    #    #calc. and save validation image dice summary
+    #    dsc_summary_msg = sess.run(ae['val_dsc_summary'], feed_dict={ae['rv_dice']:np.mean(f1_arr[:,0]),\
+    #                            ae['myo_dice']:np.mean(f1_arr[:,1]),ae['lv_dice']:np.mean(f1_arr[:,2]),ae['mean_dice']: mean_f1})
+    #    val_sum_writer.add_summary(dsc_summary_msg, epoch_i)
+    #    val_sum_writer.flush()
 
-    if ((epoch_i==n_epochs-1) and (epoch_i != start_epoch)):
-        # model saved at last epoch
-        mp = str(save_dir) + str(checkpoint_filename) + '_epochs_' + str(epoch_i) + '.ckpt'
-        saver.save(sess, mp)
-        try:
-            mp_best
-        except NameError:
-            mp_best=mp
+    #if ((epoch_i==n_epochs-1) and (epoch_i != start_epoch)):
+    #    # model saved at last epoch
+    #    mp = str(save_dir) + str(checkpoint_filename) + '_epochs_' + str(epoch_i) + '.ckpt'
+    #    saver.save(sess, mp)
+    #    try:
+    #        mp_best
+    #    except NameError:
+    #        mp_best=mp
 
 sess.close()
 ######################################
 # restore best model and predict segmentations on test subjects
-saver_new = tf.train.Saver()
-sess_new = tf.Session(config=config)
-saver_new.restore(sess_new, mp_best)
-print("best model chkpt",mp_best)
-print("Model restored")
+#saver_new = tf.train.Saver()
+#sess_new = tf.Session(config=config)
+#saver_new.restore(sess_new, mp_best)
+#print("best model chkpt",mp_best)
+#print("Model restored")
 
 #########################
 # To compute inference on test images on the model that yields best dice score on validation images
-f1_util.pred_segs_acdc_test_subjs(sess_new,ae,save_dir,orig_img_dt,test_list,struct_name)
+#f1_util.pred_segs_acdc_test_subjs(sess_new,ae,save_dir,orig_img_dt,test_list,struct_name)
 ######################################
 # To compute inference on validation images on the best model
-save_dir_tmp=str(save_dir)+'/val_imgs/'
-f1_util.pred_segs_acdc_test_subjs(sess_new,ae,save_dir_tmp,orig_img_dt,val_list,struct_name)
+#save_dir_tmp=str(save_dir)+'/val_imgs/'
+#f1_util.pred_segs_acdc_test_subjs(sess_new,ae,save_dir_tmp,orig_img_dt,val_list,struct_name)
 ######################################
