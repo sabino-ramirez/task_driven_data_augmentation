@@ -49,9 +49,9 @@ parser.add_argument(
 parser.add_argument("--lr_seg", type=float, default=0.001)
 
 # learning rate of generator
-parser.add_argument("--lr_gen", type=float, default=0.0001)
+parser.add_argument("--lr_gen", type=float, default=0.001)
 # learning rate of discriminator
-parser.add_argument("--lr_disc", type=float, default=0.0001)
+parser.add_argument("--lr_disc", type=float, default=0.001)
 # lat dim of z sample
 parser.add_argument("--z_lat_dim", type=int, default=100)
 
@@ -64,7 +64,7 @@ parser.add_argument(
 # beta value of Adam optimizer
 parser.add_argument("--beta_val", type=float, default=0.9)
 # to enable the representation of labels with 1 hot encoding
-parser.add_argument("--en_1hot", type=float, default=1)
+parser.add_argument("--en_1hot", type=float, default=0)
 
 # data aug enable : 0 - disabled, 1 - enabled
 parser.add_argument("--data_aug_seg", type=int, default=1, choices=[0, 1])
@@ -133,6 +133,10 @@ save_dir = (
     + "/"
 )
 
+# save_dir = (
+#     "/home/sabino/task_driven_data_augmentation/train_model/study_deform_gan_output/"
+# )
+
 if parse_config.data_aug_seg == 0:
     save_dir = str(save_dir) + "no_data_aug/"
     cfg.aug_en = parse_config.data_aug_seg
@@ -165,32 +169,63 @@ save_dir = (
 )
 
 print("save_dir", save_dir)
+print("\n")
 ######################################
 
 ######################################
+# load train data cropped images directly
+print("loading train imgs")
+
 # load train and val images
 train_list = data_list.train_data(parse_config.no_of_tr_imgs, parse_config.comb_tr_imgs)
 print("train_list: ", train_list)
 
-# load train data cropped images directly
-print("loading train imgs")
-train_imgs, train_labels = dt.load_acdc_cropped_img_labels(train_list)
-print("train_imgs: ", type(train_imgs))
-print("train_labels: ", type(train_imgs))
 
-val_list = data_list.val_data()
-print("val_list: ", val_list)
+train_imgs, train_labels = dt.load_acdc_cropped_img_labels(train_list)
+print("train_imgs shape + length + type: ", train_imgs.shape, len(train_imgs), type(train_imgs))
+#nib.save(nib.Nifti1Image(train_imgs, np.eye(4)), save_dir + "/train_imgs.nii.gz")
+
+print("train_labels shape + length + type: ", train_labels.shape, len(train_labels), type(train_imgs))
+#nib.save(nib.Nifti1Image(train_labels, np.eye(4)), save_dir + "/train_labels.nii.gz")
+
+print("\n")
 
 # load both val data and its cropped images
 print("loading val imgs")
+
+val_list = data_list.val_data()
+print("val_list: ", val_list)
 print("orig_img_dt: ", type(orig_img_dt))
 val_label_orig, val_img_crop, val_label_crop, pixel_val_list = load_val_imgs(
     val_list, dt, orig_img_dt
 )
-print("val_label_orig: ", type(val_label_orig))
-print("val_img_crop: ", type(val_img_crop))
-print("val_label_crop: ", type(val_label_crop))
-print("pixel_val_list: ", type(pixel_val_list))
+print("\n")
+
+print("val_label_orig type + length: ", type(val_label_orig), len(val_label_orig))
+print("val_label_orig[1] content: ", type(val_label_orig[1]), val_label_orig[1].shape)
+# for i in range(len(val_label_orig)):
+#     nib.save(nib.Nifti1Image(val_label_orig[i], np.eye(4)), save_dir + "val_label_orig_i_" + str(i) + ".nii.gz")
+print("\n")
+
+print("val_img_crop type + length: ", type(val_img_crop), len(val_img_crop))
+print("val_img_crop[1] content: ", type(val_img_crop[1]), val_img_crop[1].shape)
+# for i in range(len(val_img_crop)): # 2 times (2 val images)
+#     for j in range(len(val_img_crop[i])): # amount of slides per image times 
+#         nib.save(nib.Nifti1Image(val_img_crop[i][j], np.eye(4)), save_dir + "/val_img_crop/val_img_crop_i_" + str(i) + "_j_" + str(j) + ".nii.gz")
+print("\n")
+
+print("val_label_crop type + length: ", type(val_label_crop), len(val_label_crop))
+print("val_label_crop[1] content: ", type(val_label_crop[1]), val_label_crop[1].shape)
+# for i in range(len(val_label_crop)): # 2 times (2 val images)
+#     for j in range(len(val_label_crop[i])): # amount of slides per image times
+#         nib.save(nib.Nifti1Image(val_label_crop[i][j], np.eye(4)), save_dir + "/val_label_crop/val_label_crop_i_" + str(i) + "_j_" + str(j) + ".nii.gz")
+
+print("\n")
+
+print("pixel_val_list type + length: ", type(pixel_val_list), len(pixel_val_list))
+print("pixel_val_list[0] content: ", type(pixel_val_list[0]), pixel_val_list[0])
+print("pixel_val_list[1] content: ", type(pixel_val_list[1]), pixel_val_list[1])
+print("\n")
 
 # # load unlabeled images
 unl_list = data_list.unlabeled_data()
@@ -213,8 +248,67 @@ val_step_update = cfg.val_step_update
 checkpoint_filename = "unet_" + str(parse_config.dataset)
 logs_path = str(save_dir) + "tensorflow_logs/"
 best_model_dir = str(save_dir) + "best_model/"
+# if parse_config.en_1hot == 1:
+#     best_model_dir = str(save_dir) + "with_1hot_enabled_output"
+# else:
+#     best_model_dir = str(save_dir) + "without_1hot_output/"
 ######################################
 
+def get_samples(labeled_imgs, unlabeled_imgs):
+    # sample z vectors from Gaussian Distribution
+    z_samples = np.random.normal(
+        loc=0.0, scale=1.0, size=(cfg.batch_size, parse_config.z_lat_dim)
+    ).astype(np.float32)
+
+    # sample Unlabeled data shuffled batch
+    unld_img_batch = shuffle_minibatch(
+        [unlabeled_imgs],
+        batch_size=int(cfg.batch_size),
+        num_channels=cfg.num_channels,
+        labels_present=0,
+        axis=2,
+    )
+
+    # sample Labelled data shuffled batch
+    ld_img_batch = shuffle_minibatch(
+        [labeled_imgs],
+        batch_size=int(cfg.batch_size),
+        num_channels=cfg.num_channels,
+        labels_present=0,
+        axis=2,
+    )
+
+    return z_samples, ld_img_batch, unld_img_batch
+
+def plt_func(sess, ae, save_dir, z_samples, ld_img_batch, unld_img_batch, index=0):
+    # plot deformed images for an fixed input image and different per-pixel flow vectors generated from sampled z values
+    ld_img_tmp = np.zeros_like(ld_img_batch)
+    # select one 2D image from the batch and apply different z's sampled over this selected image
+    for i in range(0, 20):
+        ld_img_tmp[i, :, :, 0] = ld_img_batch[index, :, :, 0]
+
+    flow_vec, y_geo_deformed, z_cost = sess.run(
+        [ae["flow_vec"], ae["y_trans"], ae["z_cost"]],
+        feed_dict={
+            ae["x_l"]: ld_img_tmp,
+            ae["z"]: z_samples,
+            ae["x_unl"]: unld_img_batch,
+            ae["select_mask"]: True,
+            ae["train_phase"]: False,
+        },
+    )
+
+    f1_util.plot_deformed_imgs(
+        ld_img_tmp, y_geo_deformed, flow_vec, save_dir, index=index
+    )
+
+    # Plot gif of all the deformed images generated for the fixed input image
+    f1_util.write_gif_func(
+        ip_img=y_geo_deformed,
+        imsize=(cfg.img_size_x, cfg.img_size_y),
+        save_dir=save_dir,
+        index=index,
+    )
 ######################################
 # Define deformation field generator model graph
 ae = model.spatial_generator_cgan_unet(
@@ -234,11 +328,13 @@ ae = model.spatial_generator_cgan_unet(
 ######################################
 #  training parameters
 start_epoch = 0
-n_epochs = 5000
+# n_epochs = 5000
+n_epochs = 2500
 disp_step = 400
-print_step = 1000
+print_step = 800
 # no of iterations to train just the segmentation network using the labeled data without any cGAN generated data
-seg_tr_limit = 400
+# seg_tr_limit = 400
+seg_tr_limit = 500
 mean_f1_val_prev = 0.1
 threshold_f1 = 0.000001
 pathlib.Path(best_model_dir).mkdir(parents=True, exist_ok=True)
@@ -266,11 +362,14 @@ saver = tf.train.Saver(max_to_keep=2)
 ######################################
 
 for epoch_i in range(start_epoch, n_epochs):
+    if epoch_i % 100 == 0:
+        print("epoch ", epoch_i, "--------------")
 
     # sample z's from Gaussian Distribution
     z_samples = np.random.normal(
         loc=0.0, scale=1.0, size=(cfg.batch_size, parse_config.z_lat_dim)
     ).astype(np.float32)
+    # print("z_samples: ", z_samples)
 
     # sample Unlabeled shuffled batch
     unld_img_batch = shuffle_minibatch(
@@ -280,6 +379,7 @@ for epoch_i in range(start_epoch, n_epochs):
         labels_present=0,
         axis=2,
     )
+    # print("unlbd shuffled batch: ", type(unld_img_batch), unld_img_batch.shape)
 
     # sample Labelled shuffled batch
     ld_img_batch, ld_label_batch = shuffle_minibatch(
@@ -288,8 +388,10 @@ for epoch_i in range(start_epoch, n_epochs):
         num_channels=cfg.num_channels,
         axis=2,
     )
+    # print("ld_img_batch: ", type(ld_img_batch), ld_img_batch.shape)
+    # print("ld_label_batch: ", type(ld_label_batch), ld_label_batch.shape)
     
-    # currently 0
+    # # currently 0
     if cfg.aug_en == 1:
         # Apply affine transformations
         ld_img_batch, ld_label_batch = augmentation_function(
@@ -298,10 +400,14 @@ for epoch_i in range(start_epoch, n_epochs):
         unld_img_batch = augmentation_function([unld_img_batch], dt, labels_present=0)
 
     ld_img_batch_tmp = np.copy(ld_img_batch)
+    ld_label_batch_tmp = np.copy(ld_label_batch)
     # Compute 1 hot encoding of the segmentation mask labels
     ld_label_batch_1hot = sess.run(
         df_ae["y_tmp_1hot"], feed_dict={df_ae["y_tmp"]: ld_label_batch}
     )
+    #print("ld_label_batch_1hot: ", type(ld_label_batch_1hot), ld_label_batch_1hot.shape)
+    #nib.save(nib.Nifti1Image(ld_label_batch[5], np.eye(4)), "label_batch_sample.nii.gz")
+    #nib.save(nib.Nifti1Image(ld_label_batch_1hot[5], np.eye(4)), "onehot_label_batch_sample.nii.gz")
 
     if epoch_i >= seg_tr_limit:
         # sample the batch of images and apply deformation field generated by the Generator network on these which are used for the remaining 9500 epochs
@@ -322,10 +428,14 @@ for epoch_i in range(start_epoch, n_epochs):
             [df_ae["deform_y_1hot"]],
             feed_dict={df_ae["y_tmp"]: ld_label_batch, df_ae["flow_v"]: flow_vec},
         )
+        # print("ld label batch deform y 1hot: ", type(ld_label_batch))
         ld_label_batch = ld_label_batch[0]
+        # if epoch_i ==  n_epochs - 1:
+        #     nib.save(nib.Nifti1Image(ld_label_batch[3], np.eye(4)), "ld_label_batch_deform_no_1hot.nii.gz")
+        # print("ld label  batch deform y 1hot shape: ", ld_label_batch.shape)
 
-        ###########################
-        # shuffle the quantity/number of images chosen from deformation cGAN augmented images and rest are original images with conventional affine transformations
+    #     ###########################
+    #     # shuffle the quantity/number of images chosen from deformation cGAN augmented images and rest are original images with conventional affine transformations
         no_orig = np.random.randint(5, high=15)
         ld_img_batch[0:no_orig] = ld_img_batch_tmp[0:no_orig]
         if parse_config.en_1hot == 1:
@@ -335,14 +445,18 @@ for epoch_i in range(start_epoch, n_epochs):
             ld_label_batch[0:no_orig] = ld_label_batch_tmp[0:no_orig]
 
         # Pick equal number of images from each category
-        # ld_img_batch[0:10]=ld_img_batch_tmp[0:10]
+        ld_img_batch[0:10]=ld_img_batch_tmp[0:10]
         # ld_label_batch[0:10]=ld_label_batch_1hot[0:10]
+        ld_label_batch[0:10]=ld_label_batch_tmp[0:10]
+        if epoch_i ==  n_epochs - 1:
+            nib.save(nib.Nifti1Image(ld_label_batch[3], np.eye(4)), "ld_label_batch_sample_from_gan_for_optimization.nii.gz")
 
     elif epoch_i < seg_tr_limit:
         # sample only labeled data batches to optimize only Segmentation Network for initial 500 epochs
         ld_img_batch = ld_img_batch
         unld_img_batch = unld_img_batch
-        ld_label_batch = ld_label_batch_1hot
+        # ld_label_batch = ld_label_batch_1hot
+        ld_label_batch = ld_label_batch_tmp
 
     if epoch_i < seg_tr_limit:
         # Optimize only Segmentation Network for initial 500 epochs
@@ -458,3 +572,36 @@ for epoch_i in range(start_epoch, n_epochs):
             mp_best = mp
 
 sess.close()
+
+######################################
+# restore best model and predict segmentations on test subjects
+saver_new = tf.train.Saver()
+sess_new = tf.Session(config=config)
+saver_new.restore(sess_new, mp_best)
+print("best model chkpt name", mp_best)
+print("Model restored")
+
+#########################
+# To compute inference on test images on the model that yields best dice score on validation images
+f1_util.pred_segs_acdc_test_subjs(
+    sess_new, ae, save_dir, orig_img_dt, test_list, struct_name
+)
+#########################
+# To plot the generated augmented images from the trained deformation cGAN
+for j in range(0, 5):
+    z_samples, ld_img_batch, unld_img_batch = get_samples(train_imgs, unlabeled_imgs)
+    save_dir_tmp = str(save_dir) + "ep_best_model/"
+    plt_func(
+        sess_new, ae, save_dir_tmp, z_samples, ld_img_batch, unld_img_batch, index=j
+    )
+    print(type(ld_img_batch))
+    print(ld_img_batch.shape)
+    #image = im.fromarray(ld_img_batch[:,:,0])
+    #image.show()
+######################################
+# To compute inference on validation images on the best model
+save_dir_tmp = str(save_dir) + "val_imgs/"
+f1_util.pred_segs_acdc_test_subjs(
+    sess_new, ae, save_dir_tmp, orig_img_dt, val_list, struct_name
+)
+######################################

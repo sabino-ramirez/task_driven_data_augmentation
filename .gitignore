@@ -2,3 +2,4 @@ dataset
 __pycache__
 models
 bias_field.nii.gz
+study_deform_gan_output

@@ -47,12 +47,12 @@ def train_data(no_of_tr_imgs,comb_of_tr_imgs):
 
 def val_data():
     #print('valilation data')
-    val_list=["014","015"]
+    val_list=["003","014"]
     return val_list
 
 def unlabeled_data():
     #print('unlabeled data')
-    unlabeled_list=["001", "003", "004", "005"]
+    unlabeled_list=["001", "015", "004", "005"]
     return unlabeled_list
 
 def test_data():
