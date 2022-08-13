@@ -173,11 +173,15 @@ def shuffle_minibatch(ip_list, batch_size=20,num_channels=1,labels_present=1,axi
     img_size_z=image_data_train.shape[2]
 
     len_of_train_data=np.arange(image_data_train.shape[axis])
+    print(len_of_train_data) #[0...106]
 
-    randomize=np.random.choice(len_of_train_data,size=len(len_of_train_data),replace=True)
+    # randomize=np.random.choice(len_of_train_data,size=len(len_of_train_data),replace=True)
+    # print(randomize) #[random version of 0...106]
 
     count=0
-    for index_no in randomize:
+    # for index_no in randomize:
+    # for index_no in range(len(len_of_train_data) - 20, len(len_of_train_data)):
+    for index_no in range(20):
         if(axis==2):
             img_train_tmp=np.reshape(image_data_train[:,:,index_no],(1,img_size_x,img_size_y,num_channels))
             if(labels_present==1):

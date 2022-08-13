@@ -54,11 +54,14 @@ class dataloaderObj:
             systole_lstfiles = []  # create an empty list
             for dirName, subdirList, fileList in os.walk(path_files):
                     fileList.sort()
+                    # for filename in fileList:
+                    #     if "_frame01" in filename.lower():
+                    #         systole_lstfiles.append(os.path.join(dirName,filename))
+                    #     elif "_frame04" in filename.lower():
+                    #         systole_lstfiles.append(os.path.join(dirName,filename))
                     for filename in fileList:
                         if "patient" in filename.lower():
                             systole_lstfiles.append(os.path.join(dirName,filename))
-                        #elif "_frame04" in filename.lower():
-                        #    systole_lstfiles.append(os.path.join(dirName,filename))
 
         # Load the 3D image
         image_data_test_load = nib.load(systole_lstfiles[0])

@@ -1,4 +1,6 @@
+# python tr_unet_with_deformation_intensity_cgans_augmentations.py --no_of_tr_imgs=tr3 --comb_tr_imgs=c1 --lr_gen=0.001 --lr_disc=0.001 --data_aug_seg=1 --ra_en=0 --gan_type=gan --lamda_l1_g=0.001 --lamda_l1_i=0.001 --ver=0 --dsc_loss=0
 import os
+from random import triangular
 from PIL import Image as im
 import nibabel as nib
 # # Assign GPU no
@@ -6,6 +8,7 @@ import nibabel as nib
 #from tensorflow.python.client import device_lib
 
 import tensorflow as tf
+
 config=tf.ConfigProto()
 config.gpu_options.allow_growth=True
 config.allow_soft_placement=True
@@ -13,6 +16,7 @@ config.allow_soft_placement=True
 import matplotlib
 matplotlib.use('Agg')
 
+from slices_to_3d import make3d
 import matplotlib.pyplot as plt
 import numpy as np
 import time
@@ -128,31 +132,40 @@ print('save_dir',save_dir)
 ######################################
 # load train and val images
 train_list = data_list.train_data(parse_config.no_of_tr_imgs,parse_config.comb_tr_imgs)
-#print(train_list)
+print("train_list: ", train_list)
 #load train data cropped images directly
 print('loading train imgs')
-train_imgs,train_labels = dt.load_acdc_cropped_img_labels(train_list)
+# train_imgs,train_labels = dt.load_acdc_cropped_img_labels(train_list)
 
-if(parse_config.no_of_tr_imgs=='tr1'):
-    train_imgs_copy=np.copy(train_imgs)
-    train_labels_copy=np.copy(train_labels)
-    while(train_imgs.shape[2]<cfg.batch_size):
-        train_imgs=np.concatenate((train_imgs,train_imgs_copy),axis=2)
-        train_labels=np.concatenate((train_labels,train_labels_copy),axis=2)
-    del train_imgs_copy,train_labels_copy
+# print(train_imgs.shape, train_labels.shape)
+# train_imgs = train_imgs[:,:,0:20]
+# train_labels = train_labels[:,:,0:20]
+# print(train_imgs.shape, train_labels.shape)
+# np.save("single_image_deform/train_imgs.npy", train_imgs)
+# np.save("single_image_deform/train_labels.npy", train_labels)
+# nib.save(nib.Nifti1Image(train_imgs, np.eye(4)), "single_image_deform/train_imgs.nii.gz")
+# nib.save(nib.Nifti1Image(train_labels, np.eye(4)), "single_image_deform/train_labels.nii.gz")
 
-val_list = data_list.val_data()
+# if(parse_config.no_of_tr_imgs=='tr1'):
+#     train_imgs_copy=np.copy(train_imgs)
+#     train_labels_copy=np.copy(train_labels)
+#     while(train_imgs.shape[2]<cfg.batch_size):
+#         train_imgs=np.concatenate((train_imgs,train_imgs_copy),axis=2)
+#         train_labels=np.concatenate((train_labels,train_labels_copy),axis=2)
+#     del train_imgs_copy,train_labels_copy
+
+# val_list = data_list.val_data()
 #print(val_list)
 #load both val data and its cropped images
-print('loading val imgs')
-val_label_orig,val_img_crop,val_label_crop,pixel_val_list=load_val_imgs(val_list,dt,orig_img_dt)
+# print('loading val imgs')
+# val_label_orig,val_img_crop,val_label_crop,pixel_val_list=load_val_imgs(val_list,dt,orig_img_dt)
 #print(pixel_val_list)
 
 # get test list
-print('get test imgs list')
-test_list = data_list.test_data()
-struct_name=cfg.struct_name
-val_step_update=cfg.val_step_update
+# print('get test imgs list')
+# test_list = data_list.test_data()
+# struct_name=cfg.struct_name
+# val_step_update=cfg.val_step_update
 ######################################
 
 ######################################
@@ -185,6 +198,7 @@ model_path=str(model_path)+'lamda_dsc_'+str(parse_config.lamda_dsc)+'_lamda_adv_
          str(parse_config.no_of_tr_imgs)+'/'+str(parse_config.comb_tr_imgs)+'_v'+str(parse_config.ver)+\
          '/unet_model_beta1_'+str(parse_config.beta_val)+'_lr_seg_'+str(parse_config.lr_seg)+'_lr_gen_'+str(parse_config.lr_gen)+'_lr_disc_'+str(parse_config.lr_disc)+'/'
 
+print("model_path", model_path, "\n")
 mp=get_max_chkpt_file(model_path)
 print('loading deformation field cGAN checkpoint file',mp)
 # create a session and load the parameters learned
@@ -270,39 +284,90 @@ for epoch_i in range(start_epoch,n_epochs):
     print('sampling zs')
     z_samples = np.random.normal(loc=0.0, scale=1.0, size=(cfg.batch_size, parse_config.z_lat_dim)).astype(np.float32)
 
+    for img in train_list:
+        print('sampling labeled data')
+        # print([img])
+        train_img,train_label = dt.load_acdc_cropped_img_labels([img])
+        print("train_img: ", train_img.shape)
+        print("train_label: ", train_label.shape)
+        # h,w,z = train_img.shape
+        # print(h,w,z)
+        ld_img_batch,ld_label_batch=shuffle_minibatch([train_img,train_label],batch_size=cfg.batch_size,num_channels=cfg.num_channels,axis=2)
+
+        ld_img_batch_orig_tmp=np.copy(ld_img_batch)
+        ld_label_batch_orig_tmp=np.copy(ld_label_batch)
+        print(ld_img_batch_orig_tmp.shape)
+        print(ld_label_batch_orig_tmp.shape)
+
+        print('here is where the deformed images and labels are being made')
+        flow_vec,ld_img_batch_geo=sess_geo.run([ae_geo['flow_vec'],ae_geo['y_trans']],\
+                                    feed_dict={ae_geo['x_l']: ld_img_batch_orig_tmp, ae_geo['z']:z_samples, ae_geo['train_phase']: False})
+
+        ld_label_batch_geo=sess.run([df_ae['deform_y_1hot']],feed_dict={df_ae['y_tmp']:ld_label_batch_orig_tmp,df_ae['flow_v']:flow_vec})
+        ld_label_batch_geo=ld_label_batch_geo[0]
+
+        # print(ld_img_batch_orig_tmp[3].shape)
+        # print(ld_label_batch_orig_tmp[3].shape)
+
+        # print(ld_img_batch_geo[3].shape)
+        # print(ld_label_batch_geo[3].shape)
+        for k in range(20):
+            # save original img/label pairs
+            nib.save(nib.Nifti1Image(ld_img_batch_orig_tmp[k], np.eye(4)), "single_image_deform/orig/orig_slice" + str(k) + ".nii.gz")
+            nib.save(nib.Nifti1Image(ld_label_batch_orig_tmp[k], np.eye(4)), "single_image_deform/orig/labels/orig_slice" + str(k) + ".nii.gz")
+            np.save("single_image_deform/orig/orig_slice" + str(k) + ".npy", ld_img_batch_orig_tmp[k])
+            np.save("single_image_deform/orig/labels/orig_slice" + str(k) + ".npy", ld_label_batch_orig_tmp[k])
+
+            # save geo deformed img/label pairs
+            nib.save(nib.Nifti1Image(ld_img_batch_geo[k], np.eye(4)), "single_image_deform/deform/deform_slice" + str(k) + ".nii.gz")
+            nib.save(nib.Nifti1Image(ld_label_batch_geo[k], np.eye(4)), "single_image_deform/deform/labels/deform_slice" + str(k) + ".nii.gz")
+            np.save("single_image_deform/deform/deform_slice" + str(k) + ".npy", ld_img_batch_geo[k])
+            np.save("single_image_deform/deform/labels/deform_slice" + str(k) + ".npy", ld_label_batch_geo[k])
+
+        # print(train_list.index(img))
+        make3d(train_list.index(img))
+
     #sample Labelled data shuffled batch
-    print('sampling labeled data')
-    ld_img_batch,ld_label_batch=shuffle_minibatch([train_imgs,train_labels],batch_size=cfg.batch_size,num_channels=cfg.num_channels,axis=2)
+    # print('sampling labeled data')
+    # ld_img_batch,ld_label_batch=shuffle_minibatch([train_imgs,train_labels],batch_size=cfg.batch_size,num_channels=cfg.num_channels,axis=2)
     #if(cfg.aug_en==1):
         # Apply affine transformations
         #ld_img_batch,ld_label_batch=augmentation_function([ld_img_batch,ld_label_batch],dt)
 
-    ld_img_batch_orig_tmp=np.copy(ld_img_batch)
-    ld_label_batch_orig_tmp=np.copy(ld_label_batch)
+    # ld_img_batch_orig_tmp=np.copy(ld_img_batch)
+    # ld_label_batch_orig_tmp=np.copy(ld_label_batch)
+    # print(ld_img_batch_orig_tmp.shape)
+    # print(ld_label_batch_orig_tmp.shape)
+    # ld_img_batch_orig_tmp=np.copy(train_imgs)
+    # ld_label_batch_orig_tmp=np.copy(train_labels)
     # Compute 1 hot encoding of the segmentation mask labels
-    ld_label_batch_orig_1hot = sess.run(df_ae['y_tmp_1hot'],feed_dict={df_ae['y_tmp']:ld_label_batch_orig_tmp})
+    # ld_label_batch_orig_1hot = sess.run(df_ae['y_tmp_1hot'],feed_dict={df_ae['y_tmp']:ld_label_batch_orig_tmp})
 
     ############################
     ## use Deformation field cGAN to generate additional augmented image,label pairs from labeled samples
-    print('here is where the deformed images and labels are being made')
-    flow_vec,ld_img_batch_geo=sess_geo.run([ae_geo['flow_vec'],ae_geo['y_trans']],\
-                                feed_dict={ae_geo['x_l']: ld_img_batch_orig_tmp, ae_geo['z']:z_samples, ae_geo['train_phase']: False})
+    # print('here is where the deformed images and labels are being made')
+    # flow_vec,ld_img_batch_geo=sess_geo.run([ae_geo['flow_vec'],ae_geo['y_trans']],\
+    #                             feed_dict={ae_geo['x_l']: ld_img_batch_orig_tmp, ae_geo['z']:z_samples, ae_geo['train_phase']: False})
 
-    ld_label_batch_geo=sess.run([df_ae['deform_y_1hot']],feed_dict={df_ae['y_tmp']:ld_label_batch_orig_tmp,df_ae['flow_v']:flow_vec})
-    ld_label_batch_geo=ld_label_batch_geo[0]
+    # ld_label_batch_geo=sess.run([df_ae['deform_y_1hot']],feed_dict={df_ae['y_tmp']:ld_label_batch_orig_tmp,df_ae['flow_v']:flow_vec})
+    # ld_label_batch_geo=ld_label_batch_geo[0]
 
     #np.save("stuff/img_batch" + str(epoch_i), ld_img_batch_geo)
     #np.save("stuff/label_batch" + str(epoch_i), ld_label_batch_geo)
 
-    # save original img/label pairs
-    for k in range(20):
-        nib.save(nib.Nifti1Image(ld_img_batch_orig_tmp[k], np.eye(4)), "stuff/orig/orig_slice" + str(k) + ".nii.gz")
-        nib.save(nib.Nifti1Image(ld_label_batch_orig_tmp[k], np.eye(4)), "stuff/orig/labels/orig_slice" + str(k) + ".nii.gz")
+    # for k in range(20):
+    #     # save original img/label pairs
+    #     nib.save(nib.Nifti1Image(ld_img_batch_orig_tmp[k], np.eye(4)), "single_image_deform/orig/orig_slice" + str(k) + ".nii.gz")
+    #     nib.save(nib.Nifti1Image(ld_label_batch_orig_tmp[k], np.eye(4)), "single_image_deform/orig/labels/orig_slice" + str(k) + ".nii.gz")
+    #     np.save("single_image_deform/orig/orig_slice" + str(k) + ".npy", ld_img_batch_orig_tmp[k])
+    #     np.save("single_image_deform/orig/labels/orig_slice" + str(k) + ".npy", ld_label_batch_orig_tmp[k])
 
-    # save geo deformed img/label pairs
-    for k in range(20):
-        nib.save(nib.Nifti1Image(ld_img_batch_geo[k], np.eye(4)), "stuff/deform/deform_slice" + str(k) + ".nii.gz")
-        nib.save(nib.Nifti1Image(ld_label_batch_geo[k], np.eye(4)), "stuff/deform/labels/deform_slice" + str(k) + ".nii.gz")
+    #     # save geo deformed img/label pairs
+    #     nib.save(nib.Nifti1Image(ld_img_batch_geo[k], np.eye(4)), "single_image_deform/deform/deform_slice" + str(k) + ".nii.gz")
+    #     nib.save(nib.Nifti1Image(ld_label_batch_geo[k], np.eye(4)), "single_image_deform/deform/labels/deform_slice" + str(k) + ".nii.gz")
+    #     np.save("single_image_deform/deform/deform_slice" + str(k) + ".npy", ld_img_batch_geo[k])
+    #     np.save("single_image_deform/deform/labels/deform_slice" + str(k) + ".npy", ld_label_batch_geo[k])
+
 
     #print("type of ld_img_batch_geo: ", type(ld_img_batch_geo))
     #print("dimensions of ld_img_batch_geo: ", ld_img_batch_geo.ndim)

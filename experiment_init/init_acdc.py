@@ -16,7 +16,9 @@ img_size_flat = img_size_x * img_size_y
 # Number of colour channels for the images: 1 channel for gray-scale image.
 num_channels = 1
 # Number of classes : # 0-background, 1-rv, 2-myo, 3-lv
-num_classes=3 
+# num_classes=4 
+# ---- pelvic
+num_classes=2 
 size=(img_size_x,img_size_y)
 target_resolution=(1.36719,1.36719)
 ################################################################
@@ -33,22 +35,24 @@ base_dir='/home/sabino/task_driven_data_augmentation'
 # --- default below
 # data_path_tr='/usr/bmicnas01/data-biwi-01/krishnch/datasets/heart_acdc/acdc_bias_corr/patient'
 # --- adjusted
-# data_path_tr='/home/sabino/task_driven_data_augmentation/dataset/acdc_bias_corr/patient'
-data_path_tr='/home/sabino/task_driven_data_augmentation/dataset/summer_bias_correct/patient'
-#data_path_tr='/home/sabino/task_driven_data_augmentation/dataset/bias_correct/patient'
+# data_path_tr='/home/sabino/task_driven_data_augmentation/dataset/cardiac_bias_correct/patient'
+data_path_tr='/home/sabino/task_driven_data_augmentation/dataset/summer_bias_correct/1label/patient'
 #cropped imgs data_path
 # --- default below 
 # data_path_tr_cropped='/usr/bmicnas01/data-biwi-01/krishnch/datasets/heart_acdc/acdc_bias_corr_cropped/patient'
 # --- adjusted
-data_path_tr_cropped='/home/sabino/task_driven_data_augmentation/dataset/summer_bias_corr_cropped/patient/'
+data_path_tr_cropped='/home/sabino/task_driven_data_augmentation/dataset/summer_bias_corr_cropped/1label/patient/'
+# data_path_tr_cropped='/home/sabino/task_driven_data_augmentation/dataset/cardiac_bias_corr_cropped/patient/'
 ################################################################
 
 ################################################################
 #network optimization parameters
 ################################################################
 #enable data augmentation
-aug_en=0
+aug_en=1
 #batch_size
 batch_size=20
-#struct_name=['rv','myo','lv']
-struct_name=['vag','rec']
+# struct_name=['rv','myo','lv']
+# struct_name=['rv','myo']
+struct_name=['rv']
+# struct_name=['vag']
